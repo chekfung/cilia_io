@@ -531,7 +531,7 @@ if SAVE_FIG:
     fig.savefig(os.path.join(SAVE_PATH, "raw_image.png"), format="png", dpi=400)
 
     save_axis_high_dpi(axes[0], os.path.join(SAVE_PATH, "original_image_raw.png"))
-    save_axis_high_dpi(axes[1], os.path.join(SAVE_PATH, "pretty_pickles_raw.png"))
+    save_axis_high_dpi(axes[1], os.path.join(SAVE_PATH, "cilia_io_raw.png"))
     save_axis_high_dpi(axes[2], os.path.join(SAVE_PATH, "sperm_q_raw.png"))
     save_axis_high_dpi(axes[3], os.path.join(SAVE_PATH, "cilia_q_raw.png"))
     save_axis_high_dpi(axes[4], os.path.join(SAVE_PATH, "adaptive_threshold_raw.png"))
@@ -587,7 +587,7 @@ if SAVE_FIG:
     plt.savefig(os.path.join(SAVE_PATH, "cropped.png"), format="png", dpi=400)
 
     save_axis_high_dpi(axes[0], os.path.join(SAVE_PATH, "original_image_cropped.png"))
-    save_axis_high_dpi(axes[1], os.path.join(SAVE_PATH, "pretty_pickles_cropped.png"))
+    save_axis_high_dpi(axes[1], os.path.join(SAVE_PATH, "cilia_io_cropped.png"))
     save_axis_high_dpi(axes[2], os.path.join(SAVE_PATH, "sperm_q_cropped.png"))
     save_axis_high_dpi(axes[3], os.path.join(SAVE_PATH, "cilia_q_cropped.png"))
     save_axis_high_dpi(axes[4], os.path.join(SAVE_PATH, "adaptive_threshold_cropped.png"))
