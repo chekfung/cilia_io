@@ -100,7 +100,7 @@ DORSAL_VENTRAL_THRESHOLD_GLOBAL = 80       # Refers to where we make a horizonta
 STATIC_DORSAL_VENTRAL_THRESHOLD = False
 MIN_NUMBER_POINTS_TO_EXAMINE_MOTILITY = 1
 OUTPUT_FPS = 5
-EARLY_STOP_DEBUG = True
+EARLY_STOP_DEBUG = False
 RANDOM_COLORS = True        # Draw random colors for each of the cilia, or use dorsal ventral coloring
 
 DORSAL_COLOR = (179, 110, 59)
