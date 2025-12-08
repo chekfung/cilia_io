@@ -12,7 +12,7 @@ Cilia.io is a state-of-the-art ML-based quantification methodology for cilia mop
 </div>
 
 ## Authors and Contact Information
-**Authors:** Ece Atayeter<sup>1,2</sup>, Jason Ho<sup>3</sup>, Talon G. Blottin<sup>2</sup>, Ilyena B. Joe<sup>2</sup>, Ron Sistrunk<sup>2</sup>, Lilianna Solnica Krezel<sup>4</sup>, Andreas Gerstlauer<sup>3</sup>, John B. Wallingford<sup>1</sup>, and Ryan S. Gray<sup>2,5</sup> 
+**Authors:** Ece Atayeter<sup>1,2</sup>, Jason Ho<sup>3</sup>, Talon G. Blottin<sup>2</sup>, Ilyena B. Joe<sup>2</sup>, Ron Sistrunk<sup>2</sup>, Bo Zhang<sup>4</sup>, Lilianna Solnica Krezel<sup>4</sup>, Andreas Gerstlauer<sup>3</sup>, John B. Wallingford<sup>1</sup>, and Ryan S. Gray<sup>2,5</sup> 
 
 <sup>1</sup>Department of Molecular Biosciences, The University of Texas at Austin, Austin, Texas 78712, USA. \
 <sup>2</sup>Department of Nutrition and Pediatrics, Dell Pediatric Research Institute, The University of Texas at Austin, Austin, TX 78723, USA. \
