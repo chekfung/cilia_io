@@ -1,14 +1,14 @@
-# Cilia.io: Computer vision and machine learning reveal spatial patterns of cilia beating dynamics in the spinal cord
+# CiliaIO: Machine learning reveal spatial patterns of cilia beating dynamics in the zebrafish spinal cord
 
 ## Overview
-Cilia.io is a state-of-the-art ML-based quantification methodology for cilia mophodynamics. This repository contains a complete multi-modal pipeline for quantifying ciliary motion from confocal microscopy videos. This workflow relies on single-shot cilia detection using a fine-tuned YOLO v11 model which identifies bounding box regions of interest (ROI) to pass to Meta's Segment Anything (SAM) vision transformer models, removing the need for computationally expensive iterative masking and tracking. Unlike prior work which use traditional computer vision approaches like binary thresholding and Canny detection, Cilia.io semantically identifies where cilia are, enabling high quality masks even when cilia overlap. The goal of this project is to enable fast, robust, automated analysis of cilia dynamics overtime across diverse experimental conditions. Cilia.io can detect subtle changes in cilia morphodynamics that may not be detected by the human eye, but are pivotal to developing our understanding of ciliary function overall.
+CiliaIO is a state-of-the-art ML-based quantification methodology for cilia mophodynamics. This repository contains a complete multi-modal pipeline for quantifying ciliary motion from confocal microscopy videos. This workflow relies on single-shot cilia detection using a fine-tuned YOLO v11 model which identifies bounding box regions of interest (ROI) to pass to Meta's Segment Anything (SAM) vision transformer models, removing the need for computationally expensive iterative masking and tracking. Unlike prior work which use traditional computer vision approaches like binary thresholding and Canny detection, CiliaIO identifies where cilia are, enabling high quality masks even when cilia overlap. The goal of this project is to enable fast, robust, automated analysis of cilia dynamics overtime across diverse experimental conditions. CiliaIO can detect subtle changes in cilia morphodynamics that may not be detected by the human eye, but are pivotal to developing our understanding of ciliary function overall.
 
 <div align="center">
   <img src="img/wt_13_f_4dpf_raw.PNG" alt="Raw Image" width="600">
   <p><b>Raw Frame:</b> 4-day-post-fertilization zebrafish cilia in the central canal raw confocal image.</p>
 
   <img src="img/wt_13_f_4dpf_cilia_io_output.PNG" alt="Cilia Skeleton" width="600">
-  <p><b>Cilia.io Frame:</b> High quality detection, segmentation, skeletonization, and quantification of cilia.</p>
+  <p><b>CiliaIO Frame:</b> High quality detection, segmentation, skeletonization, and quantification of cilia.</p>
 </div>
 
 ## Authors and Contact Information
@@ -21,7 +21,7 @@ Cilia.io is a state-of-the-art ML-based quantification methodology for cilia mop
 <sup>5</sup>**Lead Contact Email:** ryan.gray@austin.utexas.edu \
 **Direct all coding questions to:** jason_ho@utexas.edu
 
-## Cilia.io's Core Pipeline
+## CiliaIO's Core Pipeline
 
 1. **Detection**  
    Cilia are detected frame-by-frame using a fine-tuned **YOLOv11m** model from Ultralytics, trained on 32,167 manually labeled zebrafish monocilia.
@@ -41,15 +41,22 @@ Cilia.io is a state-of-the-art ML-based quantification methodology for cilia mop
 ## Directory Structure
 - **data/**: This is where the data goes
 - **sam/**: If coming from github, download the SAM ViT-H checkpoint 4b8939.pth file from Meta
-- **src/**: Contains all of the source file pertaining to Cilia.io'
-  
-  - **analyze_csv_data_violin.py**: Uses the cilia_io output CSVs to generate Welch t-tests, 3D graphics, Cohen's power analysis, and violin plots.
-  - **benchmarking_cilia_tools.py**: Benchmarks cilia.io versus other cilia-based segmentation tools from prior literature.
+- **src/**: Contains all of the source file pertaining to CiliaIO'
   - **cilia_io.py**: The top main file for the entire repository.
-  - **compare_csv_for_accuracy.py**: Script used for calculating the MAPE between manual and cilia.io quantification outputs.
+  - **ml_helpers.py**: Helper functions used by CiliaIO for machine learning.
+  - **quantification_help.py**: Helper functions used by CiliaIO for quantification.
+  - **benchmarking_cilia_tools.py**: Benchmarking cilia_io versus binary thresholding, canny thresholding, and pixel-based frequency segmentation
+
+- **src/analysis/**: Contains all of the source files pertaining to downstream analysis with cilia_io
+  - **analyze_csv_data_violin.py**: Uses the cilia_io output CSVs to generate Welch t-tests, 3D graphics, Cohen's power analysis, and violin plots.
+  - **analyze_k_fold_cross_val_plots.py**: Contains utiltiies for coalescing k-fold cross validation plots together
+  - **benchmark_segment_anything.py**: Benchmarks zero-shot segment-anything on manual labeled data.
+  - **compare_csv_for_accuracy.py**: Script used for calculating the MAPE between manual and CiliaIO quantification outputs.
+  - **visualize_skeleton_over_time.py**: Script to take skeleton pickles out of cilia_io output and produce .PNG temporal waveform plots
+  
+- **src/dataset_creation**: Create datasets for YOLO fine-tuning and k-fold cross validation
   - **create_yolo_training_dataset.py**: From raw label-studio projects, generates the combined train, validation, and test splits for the fine-tuning of the YOLO model.
-  - **ml_helpers.py**: Helper functions used by Cilia.io for machine learning.
-  - **quantification_help.py**: Helper functions used by Cilia.io for quantification.
+  - **create_k_fold_cross_val_dataset.py**: Generate 3-fold stratified cross validation dataset for YOLO validation analysis
   
 - **yolo/**: Contains the original Ultralytics Yolov11m model, the train and test scripts, as well as the final, fine-tuned model.
   - **configs.yaml**: YAML file for configuring the fine-tuning of the YOLO model.
@@ -57,12 +64,13 @@ Cilia.io is a state-of-the-art ML-based quantification methodology for cilia mop
   - **yolo_test.py**: Runs the test inference on the trained best YOLO model.
   - **yolo_train.py**: Runs training and validation curves for 300 epochs on the dataset.
   - **yolo11m.pt**: The actual pre-trained YOLOv11m model from Ultralytics.
+  - **k_fold_cross_val.py**: Runs k_fold cross validation using the dataset created by '../src/dataset_creation/create_k_fold_cross_val_dataset.py'
   
 ## Dependencies
-### NOTE: A GPU IS REQUIRED TO RUN CILIA.IO
+### NOTE: A GPU IS REQUIRED TO RUN CiliaIO
 
 **See Requirements.txt for the most up to date dependencies from Python. All results were run with Python 3.10** \
-To install the requirements, we recommend a virtual environment to keep your Python package installation different than the ones required by Cilia.io. You can do this as follows: 
+To install the requirements, we recommend a virtual environment to keep your Python package installation different than the ones required by CiliaIO. You can do this as follows: 
 
 ```bash
 python3 -m venv cilia_io_venv
@@ -73,7 +81,7 @@ pip install -r requirements.txt
 
 **Note:** This will take some time because it installs all the PyTorch and CUDA binaries. Hang tight and grab a coffee.
 
-## How to Run Cilia.io
+## How to Run CiliaIO
 1. Open your virtual environment from the previous steps by finding the folder where you installed it and using this command in a terminal:
 ```bash
 source cilia_io_venv/bin/activate
@@ -86,5 +94,6 @@ designation in our pipeline. This is used as future labels in the output .CSV fi
 ```bash
 python cilia_io.py
 ``` 
-5. Cilia.io will systematically go through every single .tif file inside of the folder in `dirname` and produce .CSV files for each of them. This can then be used in the `analyze_csv_data_violin.py` scripts in order to join all the .csv files together and perform statistical analysis.
+5. CiliaIO will systematically go through every single .tif file inside of the folder in `dirname` and produce .CSV files for each of them. This can then be used in the `analyze_csv_data_violin.py` scripts in order to join all the .csv files together and perform statistical analysis.
 
+NOTE: To change CiliaIO to run file formats other than .TIF, convert to .TIF first. 

@@ -6,6 +6,7 @@ import os
 import tifffile
 import numpy as np
 import matplotlib.pyplot as plt
+# from segment_anything import SamPredictor, sam_model_registry
 import numpy as np
 import json
 

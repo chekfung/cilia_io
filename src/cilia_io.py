@@ -79,11 +79,6 @@ def pretty_print_loop_timers():
     print(table)
 
 # ---- HYPERPARAMETERS ------
-# Video Parameters
-# NOTE: Edit Here!
-dirname = '../data/test_cilia_io'
-DORSAL_VENTRAL_THRESHOLD_LIST = [85]
-
 # YOLO Parameters
 MATCHING_CONF = 0.4     # Confidence to be identified by YOLO as real point. 
 
@@ -98,7 +93,7 @@ POST_IOU_THRESH = 0.5 # Post ByteTrack IOU threshold for matching different boxe
 NUMBER_INTERPOLATION_PTS = 100
 DORSAL_VENTRAL_THRESHOLD_GLOBAL = 80       # Refers to where we make a horizontal cut of what is and is not dorsal / ventral. Note, we group in 0, or 1, as I am not sure which is which :)
 STATIC_DORSAL_VENTRAL_THRESHOLD = False
-MIN_NUMBER_POINTS_TO_EXAMINE_MOTILITY = 1
+MIN_NUMBER_POINTS_TO_EXAMINE_MOTILITY = 42
 OUTPUT_FPS = 5
 EARLY_STOP_DEBUG = False
 RANDOM_COLORS = True        # Draw random colors for each of the cilia, or use dorsal ventral coloring
@@ -107,7 +102,12 @@ DORSAL_COLOR = (179, 110, 59)
 VENTRAL_COLOR = (132, 172, 195)
 
 # ML Parameters
-device = "cuda"
+if torch.cuda.is_available():
+    device = "cuda"
+elif torch.backends.mps.is_available():
+    device = "mps"
+else:
+    device = "cpu"
 yolo_model_filepath = "../yolo/runs/detect/train/weights/best.pt"
 
 sam_checkpoint = "../sam/sam_vit_h_4b8939.pth"
@@ -137,14 +137,20 @@ def cilia_io(file, pixels_to_microns, fps, DORSAL_VENTRAL_THRESHOLD):
     dirname = os.path.dirname(file)
     fname = os.path.basename(file)
     output_path = os.path.join(dirname, fname.replace(".mp4", f"_{OUTPUT_FPS}fps_ciliaio_output.mp4"))
+    output_path_original_fps = os.path.join(dirname, fname.replace(".mp4", f"_{fps:.2f}fps_original_fps_output.mp4"))
     out = cv2.VideoWriter(output_path, fourcc, OUTPUT_FPS, (frame_width, frame_height))
+    output_ori_fps = cv2.VideoWriter(output_path_original_fps, fourcc, fps, (frame_width, frame_height))
     print(f"Saving Cilia.io Output File to: {output_path}")
+    print(f"Saving Cilia.io Output (Original FPS) File to: {output_path_original_fps}")
 
     # Persistent tracking structures
     historical_centers = {}   # id (str) -> np.array([x,y])
     track_memory = {}         # id (str) -> last known box (xyxy)
     track_age = {}            # id (str) -> frames since last seen
     track_history = defaultdict(list)  # id -> list of center points for visualization
+
+    # Track skeletons for output
+    full_skeletons = defaultdict(dict)  # full_skeletons[id][frame] = list
 
     next_id = 0
     frame_idx = 0
@@ -388,12 +394,17 @@ def cilia_io(file, pixels_to_microns, fps, DORSAL_VENTRAL_THRESHOLD):
                 cilia_lengths[cilia_id].append(cilia_length)
                 cilia_areas[cilia_id].append(cilia_area)
 
+                # Store skeletons
+                full_skeletons[cilia_id][frame_idx] = interpolated_skeleton
+
             except Exception as e:
                 print(e)
                 print(f"Problem with Cilia: {cilia_id} Frame: {frame_idx}")
                 print("Getting original skeleton coords")
 
                 mid_idx = len(ordered_coords) // 2
+
+                full_skeletons[cilia_id][frame_idx] = ordered_coords
 
                 if len(ordered_coords) != 0:
                     skeleton_center_guy = ordered_coords[mid_idx]
@@ -431,10 +442,11 @@ def cilia_io(file, pixels_to_microns, fps, DORSAL_VENTRAL_THRESHOLD):
                 print(f"ERROR: Could not paint cilia: {tid} on frame {frame_idx} due to {e}")
 
         # Draw horizontal line denoting where we split thef rame
-        #cv2.line(frame, (0, DORSAL_VENTRAL_THRESHOLD), (frame_width - 1, DORSAL_VENTRAL_THRESHOLD), color=(255, 0, 0), thickness=1)
+        cv2.line(frame, (0, DORSAL_VENTRAL_THRESHOLD), (frame_width - 1, DORSAL_VENTRAL_THRESHOLD), color=(255, 0, 0), thickness=1)
 
         cv2.imshow(f"Cilia.io: {file}", frame)
         out.write(frame)
+        output_ori_fps.write(frame)
 
         # if frame_idx >= 0:
         #     input(f"Paused at frame {frame_idx} — press Enter to continue")
@@ -581,9 +593,14 @@ def cilia_io(file, pixels_to_microns, fps, DORSAL_VENTRAL_THRESHOLD):
     with open(pickle_name, 'wb') as f:
         pickle.dump(track_center_points_skeleton, f)
 
+    pickle_name = os.path.join(dirname, f"{fname}_full_skeletons.pkl")
+    with open(pickle_name, 'wb') as f:
+        pickle.dump(full_skeletons, f)
+
     cap.release()
     cv2.destroyAllWindows()
     out.release()
+    output_ori_fps.release()
 
     stop_timer("Full Run")
     pretty_print_loop_timers()
@@ -593,7 +610,10 @@ def cilia_io(file, pixels_to_microns, fps, DORSAL_VENTRAL_THRESHOLD):
 
 # -------------
 if __name__ == "__main__":
-    # ------------------------------------
+    # Change Folder Here
+    dirname = '../data/test_cilia_io'
+    DORSAL_VENTRAL_THRESHOLD_LIST = [85]        
+
     # Get the files in a directory
     tif_files = glob.glob(os.path.join(dirname, "*.tif"))
     print(tif_files)

@@ -3,9 +3,11 @@ from ml_helpers import *
 from quantification_help import *
 
 from scipy.interpolate import splprep, splev
-from scipy.ndimage import distance_transform_edt, sobel
+from scipy.ndimage import distance_transform_edt, sobel, label
 
 import skimage
+import matplotlib
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import cv2
 import numpy as np
@@ -18,25 +20,24 @@ from skimage.morphology import skeletonize, thin
 from skimage.measure import label, regionprops
 from skimage.filters import apply_hysteresis_threshold
 from scipy.fft import fft, fftfreq
-
-
+from skimage import measure, morphology
 
 from ultralytics import YOLO
 import torch 
 from segment_anything import SamPredictor, sam_model_registry
 
 '''
-File that is used to perform benchmarking between Cilia.io and other cilia
-quantification segmentation methodologies such as SpermQ, CilaQ, and a frequency-based
+File that is used to perform benchmarking between ciliaIO and other cilia
+quantification segmentation methodologies such as Li Binary Thresholding, Canny Detection, and a frequency-based
 segmentation method from Thouvenin et al. 2021
 '''
 
 # CONFIGS
-VIDEO_FILE_PATH = '../data/6_23_25_4dpf_wt_bbs2_selected_videos/bbs2_21_f_vent.mp4'
-VIDEO_FILE_PATH = '../data/test_cilia_io/bbs2_21_f_vent.mp4'
+VIDEO_FILE_PATH = '../data/video_file'
+
 CROP_Y = (34, 141)
 CROP_X = (78, 323)
-SAVE_PATH = 'default_save_filepath' 
+SAVE_PATH = 'test'
 SAVE_FIG = False 
 
 if not os.path.exists(SAVE_PATH):
@@ -68,7 +69,6 @@ SCALE_BAR_LENGTH = 1.0 # micron
 
 # -----------------------------------
 
-
 def save_axis_high_dpi(ax, filename, dpi=400, transparent=True, pad_inches=0.0):
     # Get the parent figure
     fig = ax.figure
@@ -85,6 +85,9 @@ def save_axis_high_dpi(ax, filename, dpi=400, transparent=True, pad_inches=0.0):
     print(f"Saved axis as '{filename}' ({dpi} DPI)")
 
 def thouvenin_frequency_segmentation(imaging_data, fps, local_avg_size=4, num_fft_peaks=5, min_roi_pixels=40):
+    '''
+    Adapted from Thouvenin et al., 2021 using their original MATLAB scripts, ported to Python.
+    '''
     # Filter Data
     filtered_data = uniform_filter(imaging_data, size=(0, local_avg_size, local_avg_size))
 
@@ -108,40 +111,49 @@ def thouvenin_frequency_segmentation(imaging_data, fps, local_avg_size=4, num_ff
             main_freq = freqs[peak_indices[0]]
             freqs_map[y, x] = main_freq
 
-    # Quantize frequencies into bins to tolerate small variations
-    bin_width = 2   # quantize in one +=1
-    bins = np.arange(freqs_map.min(), freqs_map.max() + bin_width, bin_width)
-    digitized = np.digitize(freqs_map, bins)
-
+    # This matches the MATLAB Thouvenin implementation: FreqBand = AcqFreq/20
+    freq_band = fps / 20.0
+    
     rois = []
     roi_mask = np.zeros_like(freqs_map, dtype=bool)
     
-    unique_bins = np.unique(digitized)
-    
-    # For each bin, find connected ROIs
-    for b in unique_bins:
-        bin_mask = (digitized == b)
-        labeled_mask = label(bin_mask)
+    # Iterate through 9 bands (ff=1 to 9)
+    for ff in range(1, 10):
+        lower_bound = ff * freq_band
+        upper_bound = (ff + 1) * freq_band
         
-        for region in regionprops(labeled_mask):
-            # This makes sure we do not color in the background
+        # Create binary map for this bandwidth
+        bin_mask = (freqs_map > lower_bound) & (freqs_map < upper_bound)
+        
+        if not np.any(bin_mask):
+            continue
+            
+        # We fill holes first so the 'Area' calculation is more accurate
+        filled_mask = morphology.remove_small_holes(bin_mask.astype(bool), area_threshold=min_roi_pixels)
+        
+        # Label connected components (8-connectivity)
+        labeled_mask = measure.label(filled_mask, connectivity=2)
+        
+        # Find Regions of Interest
+        for region in measure.regionprops(labeled_mask):
+            # Only select ROIs containing more than min_roi_pixels
             if region.area >= min_roi_pixels and region.area < 1000:
                 rois.append(region)
-                # Add this ROI to the roi_mask
+                # Map these pixels to our master ROI mask
+                # This replaces the 'ismember' and 'FrequencyMap' update in MATLAB
                 roi_mask[labeled_mask == region.label] = True
 
-    # Create ROI frequency map (only pixels inside ROIs)
-    roi_freq_map = np.where(roi_mask, freqs_map, 1)
-
+    # Create ROI frequency map (background set to 0 for better contrast)
+    roi_freq_map = np.where(roi_mask, freqs_map, 0)
     # Plot frequency maps
     # fig, axes = plt.subplots(1, 2, figsize=(12, 5))
     
-    # im1 = axes[0].imshow(freqs_map, cmap='viridis')
+    # im1 = axes[0].imshow(freqs_map, cmap='plasma')
     # axes[0].set_title("Full Frequency Map")
     # axes[0].axis('off')
     # plt.colorbar(im1, ax=axes[0], label="Frequency (Hz)", shrink=0.7)
     
-    # im2 = axes[1].imshow(roi_freq_map, cmap='viridis')
+    # im2 = axes[1].imshow(roi_freq_map, cmap='plasma')
     # axes[1].set_title("ROIs (Frequencies)")
     # axes[1].axis('off')
     # plt.colorbar(im2, ax=axes[1], label="Frequency (Hz)", shrink=0.7)
@@ -149,30 +161,31 @@ def thouvenin_frequency_segmentation(imaging_data, fps, local_avg_size=4, num_ff
     # plt.tight_layout()
 
     # Plot frequency maps with black background and white text
-    fig, axes = plt.subplots(1, 2, figsize=(12, 5), facecolor='black')
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
 
     # Full frequency map
-    im1 = axes[0].imshow(freqs_map, cmap='viridis')
-    axes[0].set_title("Full Frequency Map", color='white')
+    im1 = axes[0].imshow(freqs_map, cmap='plasma')
+    axes[0].set_title("Full Frequency Map", color='black')
     axes[0].axis('off')
     cbar1 = plt.colorbar(im1, ax=axes[0], label="Frequency (Hz)", shrink=0.7)
-    cbar1.ax.yaxis.set_tick_params(color='white', labelcolor='white')  # tick numbers white
-    cbar1.outline.set_edgecolor('white')
-    cbar1.ax.yaxis.label.set_color('white')
+    cbar1.ax.yaxis.set_tick_params(color='white', labelcolor='black')  # tick numbers white
+    cbar1.outline.set_edgecolor('black')
+    cbar1.ax.yaxis.label.set_color('black')
 
     # ROI frequency map
-    im2 = axes[1].imshow(roi_freq_map, cmap='viridis')
-    axes[1].set_title("ROIs (Frequencies)", color='white')
+    im2 = axes[1].imshow(roi_freq_map, cmap='plasma')
+    axes[1].set_title("ROIs (Frequencies)", color='black')
     axes[1].axis('off')
     cbar2 = plt.colorbar(im2, ax=axes[1], label="Frequency (Hz)", shrink=0.7)
-    cbar2.ax.yaxis.set_tick_params(color='white', labelcolor='white')  # tick numbers white
-    cbar2.outline.set_edgecolor('white')
-    cbar2.ax.yaxis.label.set_color('white')
+    cbar2.ax.yaxis.set_tick_params(color='black', labelcolor='black')  # tick numbers white
+    cbar2.outline.set_edgecolor('black')
+    cbar2.ax.yaxis.label.set_color('black')
 
     plt.tight_layout()
 
-    plt.savefig(os.path.join(SAVE_PATH,"thouvenin_frequency_graphs.png"), format='png', dpi=400)
-    print("Saved axis as 'thouvenin_frequency_graphs.png' (400 dpi)")
+    if SAVE_FIG:
+        plt.savefig(os.path.join(SAVE_PATH,"thouvenin_frequency_graphs.png"), format='png', dpi=400)
+        print("Saved axis as 'thouvenin_frequency_graphs.png' (400 dpi)")
 
     roi_freq_values = []
 
@@ -194,10 +207,12 @@ def thouvenin_frequency_segmentation(imaging_data, fps, local_avg_size=4, num_ff
 
     return freqs_map, roi_freq_map, rois
 
-def ciliaq_segmentation(image, sigma_gaussian=1.0, low_threshold=0, high_threshold=0.8):
+def canny_segmentation(image, sigma_gaussian=1.0, low_threshold=0, high_threshold=0.8):
     """
     Applies a 2D image processing pipeline: Gaussian smoothing, Sobel edge detection,
-    hysteresis thresholding, and hole filling based on the CiliaQ paper
+    hysteresis thresholding, and hole filling, similar to CiliaQ paper
+
+    NOTE: Not the same exact algorithm as the paper.
     """
 
     # Image smoothed with a 2D Gaussian kernel
@@ -251,15 +266,15 @@ gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 # Apply Gaussian Blur
 blurred = gaussian_filter(gray, sigma=1)
 inverted = cv2.bitwise_not(blurred)
-axes[1].imshow(blurred, cmap='gray')
-axes[1].set_title("Blurred Image")
-axes[1].axis('off')
+# axes[1].imshow(blurred, cmap='gray')
+# axes[1].set_title("Blurred Image")
+# axes[1].axis('off')
 
-# SpermQ Li Thresholidng Methodology
+# Li Binary Thresholidng Methodology
 threshold = skimage.filters.threshold_li(blurred)
 _, binary = cv2.threshold(blurred, threshold, 255, cv2.THRESH_BINARY)
 axes[2].imshow(binary, cmap='gray')
-axes[2].set_title(f"SpermQ Li Thresholding Segmentation (Threshold = {threshold:.2f})")
+axes[2].set_title(f"Li Binary Thresholding Segmentation (Threshold = {threshold:.2f})")
 axes[2].axis('off')
 
 # Adaptive Threshold
@@ -277,11 +292,11 @@ axes[4].imshow(adaptive_thresh, cmap='gray')
 axes[4].set_title(f"Adaptive Thresholding with BLOCK_SIZE: {ADAPTIVE_BLOCK_SIZE}, C: {ADAPTIVE_C}")
 axes[4].axis('off')
 
-# CiliaQ Segmentation
-ciliaq_work = ciliaq_segmentation(gray)
+# canny Segmentation
+canny_work = canny_segmentation(gray)
 
-axes[3].imshow(ciliaq_work, cmap='gray')
-axes[3].set_title(f"CiliaQ 3D Canny Segmentation")
+axes[3].imshow(canny_work, cmap='gray')
+axes[3].set_title(f"3D Canny Segmentation")
 axes[3].axis('off')
 
 # Thouvenin Frequency Segmentation
@@ -298,9 +313,9 @@ cap.release()
 
 data = np.stack(frames, axis=0)  # shape: (T, H, W)
 
-frequencies, freq_roi_map, rois = thouvenin_frequency_segmentation(data, fps)
+frequencies, freq_roi_map, rois = thouvenin_frequency_segmentation(data, fps, min_roi_pixels=40)
 
-im2 = axes[5].imshow(freq_roi_map, cmap='viridis')
+im2 = axes[5].imshow(freq_roi_map, cmap='plasma')
 axes[5].set_title("Thouvenin Frequency Segmentation")
 axes[5].axis('off')
 
@@ -316,7 +331,7 @@ POST_IOU_THRESH = 0.5 # Post ByteTrack IOU threshold for matching different boxe
 
 device = "cuda"
 # Load YOLO model
-box_model = YOLO("../yolo/runs/detect/train/weights/best.pt")
+box_model = YOLO("../yolo/runs_cilia_io_submission/detect/train/weights/best.pt")
 box_model.to(device)
 print("Loaded in YOLO V11m Model")
 
@@ -524,7 +539,7 @@ for tid in sorted(track_memory.keys(), key=lambda x: int(x)):
     cv2.polylines(image, [pts], isClosed=False, color=(255, 255, 255), thickness=1)
 
 axes[1].imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-axes[1].set_title(f"Cilia.io")
+axes[1].set_title(f"ciliaIO")
 axes[1].axis('off')
 
 if SAVE_FIG:
@@ -532,8 +547,8 @@ if SAVE_FIG:
 
     save_axis_high_dpi(axes[0], os.path.join(SAVE_PATH, "original_image_raw.png"))
     save_axis_high_dpi(axes[1], os.path.join(SAVE_PATH, "cilia_io_raw.png"))
-    save_axis_high_dpi(axes[2], os.path.join(SAVE_PATH, "sperm_q_raw.png"))
-    save_axis_high_dpi(axes[3], os.path.join(SAVE_PATH, "cilia_q_raw.png"))
+    save_axis_high_dpi(axes[2], os.path.join(SAVE_PATH, "li_binary_raw.png"))
+    save_axis_high_dpi(axes[3], os.path.join(SAVE_PATH, "canny_raw.png"))
     save_axis_high_dpi(axes[4], os.path.join(SAVE_PATH, "adaptive_threshold_raw.png"))
     save_axis_high_dpi(axes[5], os.path.join(SAVE_PATH, "thouvenin_frequency_raw.png"))
 
@@ -564,22 +579,22 @@ axes[0].plot(
 
 # === Other methods ===
 axes[1].imshow(cv2.cvtColor(crop(image), cv2.COLOR_BGR2RGB))
-axes[1].set_title("Cilia.io")
+axes[1].set_title("ciliaIO")
 axes[1].axis('off')
 
 axes[2].imshow(crop(binary), cmap='gray')
-axes[2].set_title(f"SpermQ Li Thresholding (Threshold = {threshold:.2f})")
+axes[2].set_title(f"Li Binary Thresholding (Threshold = {threshold:.2f})")
 axes[2].axis('off')
 
-axes[3].imshow(crop(ciliaq_work), cmap='gray')
-axes[3].set_title("CiliaQ 3D Canny Segmentation")
+axes[3].imshow(crop(canny_work), cmap='gray')
+axes[3].set_title("3D Canny Segmentation")
 axes[3].axis('off')
 
 axes[4].imshow(crop(adaptive_thresh), cmap='gray')
 axes[4].set_title(f"Adaptive Thresholding (Block={ADAPTIVE_BLOCK_SIZE}, C={ADAPTIVE_C})")
 axes[4].axis('off')
 
-im2 = axes[5].imshow(crop(freq_roi_map), cmap='viridis')
+im2 = axes[5].imshow(crop(freq_roi_map), cmap='plasma')
 axes[5].set_title("Thouvenin Frequency Segmentation")
 axes[5].axis('off')
 
@@ -588,8 +603,8 @@ if SAVE_FIG:
 
     save_axis_high_dpi(axes[0], os.path.join(SAVE_PATH, "original_image_cropped.png"))
     save_axis_high_dpi(axes[1], os.path.join(SAVE_PATH, "cilia_io_cropped.png"))
-    save_axis_high_dpi(axes[2], os.path.join(SAVE_PATH, "sperm_q_cropped.png"))
-    save_axis_high_dpi(axes[3], os.path.join(SAVE_PATH, "cilia_q_cropped.png"))
+    save_axis_high_dpi(axes[2], os.path.join(SAVE_PATH, "li_binary_cropped.png"))
+    save_axis_high_dpi(axes[3], os.path.join(SAVE_PATH, "canny_cropped.png"))
     save_axis_high_dpi(axes[4], os.path.join(SAVE_PATH, "adaptive_threshold_cropped.png"))
     save_axis_high_dpi(axes[5], os.path.join(SAVE_PATH, "thouvenin_frequency_cropped.png"))
 

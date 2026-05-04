@@ -48,9 +48,9 @@ def move_files(video_list, split):
 # ------------------------------
 # Start Hyperparameters
 TRAIN_RATIO = 0.80
-RAW_DATA_DIR = "../data/labeled_data"  # Parent folder containing video-wise folders
-RAW_TEST_SET_DIR = "../data/test_set"
-DATASET_DIR = "../data/example_dataset"  # Where YOLO dataset will be stored
+RAW_DATA_DIR = "../../data/labeled_data"  # Parent folder containing video-wise folders
+RAW_TEST_SET_DIR = "../../data/test_set"
+DATASET_DIR = "../../data/example_dataset"  # Where YOLO dataset will be stored
 LOG_FILE = os.path.join(DATASET_DIR, "train_val_split.json")
 
 # Ensure images and labels exist :)
