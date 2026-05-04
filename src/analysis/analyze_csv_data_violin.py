@@ -198,7 +198,8 @@ def pca_per_cilium_2d_plots(df, identifier, use_other_axis=False, pca=None, scal
     plt.grid(True, linestyle='--', alpha=0.5)
     plt.tight_layout()
 
-    plt.savefig(f'../writing/4_27_26_cilia_io_graphs/2d_pca_{identifier}.png', format='png', dpi=300)
+    if SAVE_FIGURES:
+        plt.savefig(f'../writing/4_27_26_cilia_io_graphs/2d_pca_{identifier}.png', format='png', dpi=300)
 
     # Feature Loading Analysis (Who contributes most?)
     loadings = pd.DataFrame(
@@ -258,7 +259,8 @@ def pca_per_cilium_2d_plots(df, identifier, use_other_axis=False, pca=None, scal
     plt.title(f"Feature Contributions to Principal Components {identifier}", fontsize=16)
     plt.tight_layout()
 
-    plt.savefig(f'../writing/4_27_26_cilia_io_graphs/2d_pca_{identifier}_table.png', format='png', dpi=300)
+    if SAVE_FIGURES:
+        plt.savefig(f'../writing/4_27_26_cilia_io_graphs/2d_pca_{identifier}_table.png', format='png', dpi=300)
 
     return pca, scaler
 
@@ -323,7 +325,9 @@ def pca_2d_plots(df, identifier, use_other_axis=False, pca=None, scaler=None):
     
     plt.grid(True, linestyle='--', alpha=0.3)
     plt.tight_layout()
-    plt.savefig(f'../writing/4_27_26_cilia_io_graphs/2d_pca_{identifier}_fish.png', dpi=300)
+
+    if SAVE_FIGURES:
+        plt.savefig(f'../writing/4_27_26_cilia_io_graphs/2d_pca_{identifier}_fish.png', dpi=300)
 
     # 5. Permanova test
     sample_ids = [str(i) for i in range(len(data_scaled))]
@@ -370,7 +374,9 @@ def pca_2d_plots(df, identifier, use_other_axis=False, pca=None, scaler=None):
     
     plt.title(f"Feature Contributions to Principal Components {identifier}", fontsize=16)
     plt.tight_layout()
-    plt.savefig(f'../writing/4_27_26_cilia_io_graphs/2d_pca_{identifier}_loadings.png', dpi=300)
+    
+    if SAVE_FIGURES:
+        plt.savefig(f'../writing/4_27_26_cilia_io_graphs/2d_pca_{identifier}_loadings.png', dpi=300)
 
     return pca, scaler
 

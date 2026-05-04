@@ -194,7 +194,7 @@ file = os.path.join(root_folder, f"{file_name}.mp4_full_skeletons.pkl")
 video_path = os.path.join(root_folder, f"{file_name}_5fps_ciliaio_output.mp4")
 
 if __name__ == "__main__":
-    fig_directory = os.path.join(f'../writing/cilia_skeleton_tracking/{file_name}')
+    fig_directory = os.path.join(f'../../img/cilia_skeleton_tracking/{file_name}')
 
     if SAVE_FIGS:
         # Does figure exist

@@ -15,4 +15,4 @@ tifffile==2025.3.30
 torch==2.2.2
 ultralytics==8.3.100
 lap==0.5.12
-scikit-bio==0.7.2
+scikit-bio==0.6

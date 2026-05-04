@@ -33,7 +33,7 @@ segmentation method from Thouvenin et al. 2021
 '''
 
 # CONFIGS
-VIDEO_FILE_PATH = '../data/video_file'
+VIDEO_FILE_PATH = '../data/video_file.mp4'
 
 CROP_Y = (34, 141)
 CROP_X = (78, 323)
