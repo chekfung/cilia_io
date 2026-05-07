@@ -184,8 +184,8 @@ file_name = 'video_name'
 dorsal_threshold = 80
 
 dark_mode = True
-SAVE_FIGS = True
-num_frames = 100
+SAVE_FIGS = False
+num_frames = 250
 px_to_um = 0.107438780772816
 fps = 49.88551663662496
 

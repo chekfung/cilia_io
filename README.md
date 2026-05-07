@@ -24,18 +24,21 @@ CiliaIO is a state-of-the-art ML-based quantification methodology for cilia moph
 ## CiliaIO's Core Pipeline
 
 1. **Detection**  
-   Cilia are detected frame-by-frame using a fine-tuned **YOLOv11m** model from Ultralytics, trained on 32,167 manually labeled zebrafish monocilia.
+   Cilia are detected frame-by-frame using a fine-tuned **YOLOv11m** model from Ultralytics.
 
 2. **Tracking**  
-   Object tracks are initialized and maintained using **ByteTrack** with additional logic for **center-distance matching** and **overlap-based ID merging**. Fallback heuristics handle missed detections and ensure temporal ID consistency across frames.
+   Object tracks are initialized and maintained using **ByteTrack** with additional logic for center-distance matching and overlap-based ID merging. Fallback heuristics handle missed detections and ensure temporal ID consistency across frames.
 
-3. **Skeletonization**  
+3. **Segmentation**
+    Boxes are segmented using the Segment-Anything Model (SAM).
+
+4. **Skeletonization**  
    Segmentation masks are skeletonized using the morphological thinning algorithm, which iteratively removes pixels on each side of the mask until one pixel remains.
 
-4. **Quantification**  
-   Tracked trajectories are analyzed to extract per-cilium motion features, including spatial amplitude, beating frequency, beating regularity, centroid frequency, and more. Summary statistics are aggregated across videos for downstream analysis.
+5. **Quantification**  
+   Tracked trajectories are  analyzed to extract per-cilium motion features, including spatial amplitude, beating frequency, beating regularity, centroid frequency, and more. Summary statistics are aggregated across videos for downstream analysis.
 
-5. **Visualization**  
+6. **Visualization**  
    The pipeline supports trajectory overlays, segmentation mask overlays on the raw confocal videos, skeleton tracking, and bounding box tracking.
 
 ## Directory Structure
@@ -82,18 +85,4 @@ pip install -r requirements.txt
 **Note:** This will take some time because it installs all the PyTorch and CUDA binaries. Hang tight and grab a coffee.
 
 ## How to Run CiliaIO
-1. Open your virtual environment from the previous steps by finding the folder where you installed it and using this command in a terminal:
-```bash
-source cilia_io_venv/bin/activate
-```
-2. Load data into the `/data/` folder
-3. Setup the `src/cilia_io.py` hyperparameters at the top of the file. Notably, edit the `dirname` and `DORSAL_VENTRAL_THRESHOLD_LIST` variables. The dirname is the directory name to parse .tif files from. The
-latter is the specific pixel height to draw a horizontal line delineating the DORSAL (top) from the Ventral (bottom)
-designation in our pipeline. This is used as future labels in the output .CSV files.
-4. Navigate to the folder containing `cilia_io.py` and run by using the following bash command:
-```bash
-python cilia_io.py
-``` 
-5. CiliaIO will systematically go through every single .tif file inside of the folder in `dirname` and produce .CSV files for each of them. This can then be used in the `analyze_csv_data_violin.py` scripts in order to join all the .csv files together and perform statistical analysis.
-
-NOTE: To change CiliaIO to run file formats other than .TIF, convert to .TIF first. 
+See the user guide, titled: cilia_io_user_guide.pdf!

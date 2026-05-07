@@ -8,6 +8,8 @@ import math
 from collections import defaultdict
 import pandas as pd
 import matplotlib.pyplot as plt
+import argparse
+import sys
 
 # ML Imports
 from ultralytics import YOLO
@@ -79,27 +81,116 @@ def pretty_print_loop_timers():
     print(table)
 
 # ---- HYPERPARAMETERS ------
-# YOLO Parameters
-MATCHING_CONF = 0.4     # Confidence to be identified by YOLO as real point. 
+parser = argparse.ArgumentParser(
+    description="CiliaIO Tracking Pipeline Configuration",
+    formatter_class=argparse.ArgumentDefaultsHelpFormatter
+)
 
-# ByteTrack / Post ByteTrack YOLO Tracker parameters
-MAX_DIST = 30  # max center distance to match historical ID (pixels)
-MAX_AGE = 5    # frames to keep unmatched IDs before dropping (Used to match similar IDs together :))
-POST_IOU_THRESH = 0.5 # Post ByteTrack IOU threshold for matching different boxes together
+# Input directory input parameters
+required = parser.add_argument_group('Required Parameters')
+required.add_argument('--input-dir', type=str, required=True,
+                    help='Path to the folder containing videos to process')
 
-# SAM Params
+# Dorsal Ventral Axis
+dorsal_ventral = parser.add_argument_group("Dorsal Ventral Split")
+dorsal_ventral.add_argument('--static-dv', action=argparse.BooleanOptionalAction, default=True, 
+                    help='Toggle between a single static threshold and the threshold list')
+dorsal_ventral.add_argument('--dv-threshold', type=int, default=80, 
+                    help='Y-axis coordinate for dorsal/ventral horizontal cut')
+dorsal_ventral.add_argument('--dv-threshold-list', type=int, nargs='+',
+                    help='List of DV thresholds for each video (e.g., --dv-threshold-list 85 72) where Y=85 is for video0, 72 for video 1')
 
-# Skeletonization Parameters
-NUMBER_INTERPOLATION_PTS = 100
-DORSAL_VENTRAL_THRESHOLD_GLOBAL = 80       # Refers to where we make a horizontal cut of what is and is not dorsal / ventral. Note, we group in 0, or 1, as I am not sure which is which :)
-STATIC_DORSAL_VENTRAL_THRESHOLD = False
-MIN_NUMBER_POINTS_TO_EXAMINE_MOTILITY = 42
-OUTPUT_FPS = 5
-EARLY_STOP_DEBUG = False
-RANDOM_COLORS = True        # Draw random colors for each of the cilia, or use dorsal ventral coloring
+# Detection & Tracking Group
+tracking = parser.add_argument_group('Detection & Tracking')
+tracking.add_argument('--matching-conf', type=float, default=0.4, 
+                    help='Confidence to be identified by YOLO as real point')
+tracking.add_argument('--max-dist', type=int, default=30, 
+                    help='Max center distance to match historical ID (pixels)')
+tracking.add_argument('--max-age', type=int, default=5, 
+                    help='Frames to keep unmatched IDs before dropping')
+tracking.add_argument('--post-iou-thresh', type=float, default=0.5, 
+                    help='Post ByteTrack IOU threshold for matching boxes')
+
+# Skeletonization & Anatomy Group
+skeleton = parser.add_argument_group('Skeletonization & Anatomy')
+skeleton.add_argument('--interpolation-pts', type=int, default=100, 
+                    help='Number of nodes for spline resolution')
+skeleton.add_argument('--min-motility', type=int, default=42, 
+                    help='Min consecutive frames required for motility metrics')
+
+# Metadata Group (NEW)
+metadata = parser.add_argument_group('Metadata')
+metadata.add_argument('--metadata-search', action=argparse.BooleanOptionalAction, default=True,
+                    help='Toggle automated metadata search/extraction')
+metadata.add_argument('--video-fps', type=float, default=None,
+                    help='Actual frame rate of the source video. Not needed unless we turn off metadata-search')
+metadata.add_argument('--pixel-to-micron', type=float, default=None,
+                    help='Conversion factor for spatial measurements.  Not needed unless we turn off metadata-search')
+
+# Output & Debug Group
+output = parser.add_argument_group('Output & Debug')
+output.add_argument('--output-fps', type=int, default=5, 
+                    help='Output video frames per second')
+output.add_argument('--early-stop', action='store_true', default=False, 
+                    help='Enable early stop for debugging')
+output.add_argument('--random-colors', action=argparse.BooleanOptionalAction, default=True,
+                    help='Toggle between random colors and dorsal/ventral coloring')
+
+# Parse arguments (handles Jupyter/IPython environments gracefully)
+if 'ipykernel' in sys.modules:
+    args = parser.parse_args(args=[])
+else:
+    args = parser.parse_args()
+
+# Sanity Check :)
+if not args.metadata_search:
+    # Check to make sure that if we turn off metadata search, that we have defined things properly
+    if args.video_fps is None:
+        sys.exit("Error: Metadata search is OFF, but no --video-fps was provided!")
+    if args.pixel_to_micron is None:
+        sys.exit("Error: Metadata search is OFF, but no --pixel-to-micron was provided!")
+
+if not args.static_dv:
+    # Check to make sure that if turn off static dv, have a dv list
+    if args.dv_threshold_list is None:
+        sys.exit("Error: Static Dorsal Ventral is turned OFF, but no --dv-threshold-list was provided!")
+
+# print all parameters
+print("\n" + "="*30)
+print("CILIAIO CONFIGURATION")
+print("="*30)
+
+for arg, value in vars(args).items():
+    print(f"{arg:25}: {value}")
+
+print("="*30 + "\n")
+
+# --- Map to Original Global Variables ---
+INPUT_DIR = os.path.normpath(args.input_dir)
+
+MATCHING_CONF = args.matching_conf
+MAX_DIST = args.max_dist
+MAX_AGE = args.max_age
+POST_IOU_THRESH = args.post_iou_thresh
+
+NUMBER_INTERPOLATION_PTS = args.interpolation_pts
+DORSAL_VENTRAL_THRESHOLD_GLOBAL = args.dv_threshold
+STATIC_DORSAL_VENTRAL_THRESHOLD = args.static_dv
+DV_LIST = args.dv_threshold_list
+MIN_NUMBER_POINTS_TO_EXAMINE_MOTILITY = args.min_motility
+
+METADATA_SEARCH_ENABLE = args.metadata_search
+VIDEO_FPS = args.video_fps
+PIXEL_TO_MICRON = args.pixel_to_micron
+
+OUTPUT_FPS = args.output_fps
+EARLY_STOP_DEBUG = args.early_stop
+RANDOM_COLORS = args.random_colors
 
 DORSAL_COLOR = (179, 110, 59)
 VENTRAL_COLOR = (132, 172, 195)
+
+# ---------------------------------------
 
 # ML Parameters
 if torch.cuda.is_available():
@@ -182,14 +273,14 @@ def cilia_io(file, pixels_to_microns, fps, DORSAL_VENTRAL_THRESHOLD):
         current_boxes = result.boxes.xyxy.cpu().numpy() if result.boxes else np.zeros((0, 4))   # In the future, keep everything on the GPU to minimize data movement.
         stop_timer_loop("Yolo Run")
 
-        # 1) Match boxes to historical centers for difficult matches
+        # Match boxes to historical centers for difficult matches
         # This assumes that the cilia are somewhat FIXED and do not otherwise move their entire positions
         # We make the key assumption here that cilia basal body is fixed and cannot really move.
         start_timer("Match Historical Centers")
         assigned_ids = match_by_historical_centers(current_boxes, historical_centers, MAX_DIST) 
         stop_timer_loop("Match Historical Centers")
 
-        # 2) Assign new IDs to unmatched detections
+        # Assign new IDs to unmatched detections
         for i in range(len(assigned_ids)):
             if assigned_ids[i] is None:
                 assigned_ids[i] = str(next_id)
@@ -197,7 +288,7 @@ def cilia_io(file, pixels_to_microns, fps, DORSAL_VENTRAL_THRESHOLD):
 
         matched_ids = set(assigned_ids)
 
-        # 3) Add in old unmatched track_memory entries and increment their age
+        # Add in old unmatched track_memory entries and increment their age
         augmented_boxes = list(current_boxes)
         augmented_ids = list(assigned_ids)
 
@@ -220,12 +311,12 @@ def cilia_io(file, pixels_to_microns, fps, DORSAL_VENTRAL_THRESHOLD):
 
         augmented_boxes = np.array(augmented_boxes)
 
-        # 4) Merge overlapping boxes (across old + new)
+        # Merge overlapping boxes (across old + new)
         start_timer("Merge Overlapping Boxes")
         merged_boxes, merged_ids = merge_overlapping_boxes(augmented_boxes, augmented_ids, track_age, iou_thresh=POST_IOU_THRESH)  
         stop_timer_loop("Merge Overlapping Boxes")
 
-        # 5) Update track memory, historical centers, and reset age for matched IDs
+        # Update track memory, historical centers, and reset age for matched IDs
         start_timer("Update track Memory")
         id_to_boxes = defaultdict(list)
         for box, tid in zip(merged_boxes, merged_ids):
@@ -288,7 +379,7 @@ def cilia_io(file, pixels_to_microns, fps, DORSAL_VENTRAL_THRESHOLD):
         # keep track of dorsal vs. ventral cilia based on box center (at runtime)
         cilia_id_colors = []
 
-        # 6) Skeletonize
+        # Skeletonize
         for (cilia_id, mask_np) in zip(track_memory.keys(), masks_np):
             box = track_memory[cilia_id]
             x1, y1, x2, y2 = map(int, box)
@@ -422,7 +513,7 @@ def cilia_io(file, pixels_to_microns, fps, DORSAL_VENTRAL_THRESHOLD):
         else:
             frame = overlay_masks_once(frame, new_mask_largest_component, track_memory.keys(), cilia_id_colors, alpha=0.45)
 
-        # 8) Visualize
+        # Visualize
         for tid in sorted(track_memory.keys(), key=lambda x: int(x)):
             box = track_memory[tid]
             x1, y1, x2, y2 = map(int, box)
@@ -464,9 +555,6 @@ def cilia_io(file, pixels_to_microns, fps, DORSAL_VENTRAL_THRESHOLD):
 
     for cilia_id in cilia_areas:
         mean_areas[cilia_id] = sum(cilia_areas[cilia_id]) / len(cilia_areas[cilia_id])
-
-    #print(f"Mean Length / Cilia (microns): {mean_lengths}")
-    #print(f"Mean Area / Cilia (microns): {mean_areas}")
 
     # Quantify Motility Data Outside 
     start_timer("Motility Box Center")
@@ -611,13 +699,18 @@ def cilia_io(file, pixels_to_microns, fps, DORSAL_VENTRAL_THRESHOLD):
 # -------------
 if __name__ == "__main__":
     # Change Folder Here
-    dirname = '../data/test_cilia_io'
-    DORSAL_VENTRAL_THRESHOLD_LIST = [85]        
+    dirname = INPUT_DIR
+    DORSAL_VENTRAL_THRESHOLD_LIST = DV_LIST
 
     # Get the files in a directory
     tif_files = glob.glob(os.path.join(dirname, "*.tif"))
-    print(tif_files)
+    print(f"TIF Files Found: {tif_files}")
     dorsal_index=0
+
+    if not args.static_dv:
+        if len(DV_LIST) != len(tif_files):
+            sys.exit(f"Error: Mismatch in the length of --dv-threshold-list! Expected Length: {len(tif_files)}, Command Line List Length: {len(DV_LIST)}, ({DV_LIST})")
+
 
     for file in tif_files:
         try:
@@ -625,8 +718,12 @@ if __name__ == "__main__":
             dirname = os.path.dirname(file)
             fname = os.path.basename(file)
             
-            # Read metadata to get pixel conversion?
-            pixels_to_microns, fps, metadata_dict = tiff_get_metadata(file)
+            # Read metadata to get pixel conversion
+            if METADATA_SEARCH_ENABLE:
+                pixels_to_microns, fps, metadata_dict = tiff_get_metadata(file)
+            else: 
+                pixels_to_microns = PIXEL_TO_MICRON
+                fps = VIDEO_FPS
             print(f"One Pixel = {pixels_to_microns} Microns")
             print(f"FPS: {fps}")
 
