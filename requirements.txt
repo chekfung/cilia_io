@@ -1,4 +1,4 @@
-matplotlib==3.5.0
+#matplotlib==3.5.0
 numpy==1.26.4
 opencv_python==4.10.0.84
 pandas==2.2.2
