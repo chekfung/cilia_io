@@ -54,18 +54,18 @@ The following text details the directory structure of all files found in CiliaIO
 
 - **src/analysis/**: Contains all of the source files pertaining to downstream analysis with cilia_io
   - **analyze_csv_data_violin.py**: Uses the cilia_io output CSVs to perform statistical tests, 3D graphics, Cohen's power analysis, PCA, and violin super plots.
-  - **analyze_k_fold_cross_val_plots.py**: Contains utiltiies for coalescing k-fold cross validation plots together
+  - **analyze_k_fold_cross_val_plots.py**: Contains utilities for coalescing k-fold cross validation plots together
   - **benchmark_segment_anything.py**: Benchmarks zero-shot segment-anything on manual labeled data.
   - **compare_csv_for_accuracy.py**: Script used for calculating the MAPE between manual / Thouvenin et al. and CiliaIO quantification outputs.
   - **visualize_skeleton_over_time.py**: Script to take skeleton pickles out of cilia_io output and produce .PNG temporal waveform plots
   
 - **src/dataset_creation**: Create datasets for YOLO fine-tuning and k-fold cross validation
-  - **create_yolo_training_dataset.py**: From raw label-studio projects, generates the combined train, validation, and test splits for the fine-tuning of the YOLO model.
+  - **create_yolo_training_dataset.py**: From raw label-studio projects, generates the combined train, validation, and test splits for the fine-tuning of the YOLO model
   - **create_k_fold_cross_val_dataset.py**: Generate 3-fold stratified cross validation dataset for YOLO validation analysis
   - **preprocess_nd2.py**: For dataset fine-tuning. Takes .ND2 files and converts them into individual frames for bounding-box labeling in label-studio
   - **preprocess_tif.py**: For dataset fine-tuning. Takes .TIF files and converts them into individual frames for bounding-box labeling in label-studio
   
-- **yolo/**: Contains the original Ultralytics Yolov11m model, the train and test scripts, as well as the final, fine-tuned model.
+- **yolo/**: Contains the original Ultralytics Yolov11m model, the train and test scripts, as well as the final, fine-tuned model
   - **configs.yaml**: YAML file for configuring the fine-tuning of the YOLO model.
   - **save_training_curves.py**: Saves training curves from the YOLO training flow as .csv files
   - **yolo_test.py**: Runs the test inference on the trained best YOLO model.
