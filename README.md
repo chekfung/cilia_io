@@ -1,4 +1,4 @@
-# CiliaIO: Machine learning reveal spatial patterns of cilia beating dynamics in the zebrafish spinal cord
+# CiliaIO: Machine learning reveals spatial patterns of cilia beating dynamics in the zebrafish spinal cord
 
 ## Overview
 CiliaIO is a state-of-the-art ML-based quantification methodology for cilia mophodynamics. This repository contains a complete multi-modal pipeline for quantifying ciliary motion from confocal microscopy videos. This workflow relies on single-shot cilia detection using a fine-tuned YOLO v11 model which identifies bounding box regions of interest (ROI) to pass to Meta's Segment Anything (SAM) vision transformer models, removing the need for computationally expensive iterative masking and tracking. Unlike prior work which use classical computer vision approaches like binary thresholding and Canny detection, CiliaIO identifies where cilia are, enabling high quality masks even when cilia overlap. The goal of this project is to enable fast, robust, automated analysis of cilia dynamics overtime across diverse experimental conditions. CiliaIO can detect subtle changes in cilia morphodynamics that may not be detected by the human eye, but are pivotal to developing our understanding of ciliary function overall.
@@ -20,6 +20,29 @@ CiliaIO is a state-of-the-art ML-based quantification methodology for cilia moph
 <sup>4</sup>Department of Developmental Biology, Washington University School of Medicine, S Euclid Avenue, St. Louis, MO 63110, USA. \
 <sup>5</sup>**Lead Contact Email:** ryan.gray@austin.utexas.edu \
 **Direct all coding questions to:** jason_ho@utexas.edu
+
+## Citing our Work
+Ece Atayeter, Jason Ho, Talon G. Blottin, Ilyena B. Joe, Ron Sistrunk, Bo Zhang, Lilianna Solnica-Krezel, Andreas Gerstlauer, John B. Wallingford, Ryan S. Gray; CiliaIO: machine learning reveals spatial patterns of cilia beating dynamics in the zebrafish spinal cord. Development 15 October 2026; 153 (20): dev206057. doi: https://doi.org/10.1242/dev.206057
+
+
+**BibTex**
+```bibtex
+@article{10.1242/dev.206057,
+    author = {Atayeter, Ece and Ho, Jason and Blottin, Talon G. and Joe, Ilyena B. and Sistrunk, Ron and Zhang, Bo and Solnica-Krezel, Lilianna and Gerstlauer, Andreas and Wallingford, John B. and Gray, Ryan S.},
+    title = {CiliaIO: machine learning reveals spatial patterns of cilia beating dynamics in the zebrafish spinal cord},
+    journal = {Development},
+    volume = {153},
+    number = {20},
+    pages = {dev206057},
+    year = {2026},
+    month = {10},
+    abstract = {Motile cilia generate fluid flows that are essential for normal development and physiology. Cilia display diverse beating waveforms, and while pronounced defects are strongly associated with motile ciliopathies, subtler alterations also influence disease manifestations. Finer quantification of ciliary dynamics is therefore crucial for understanding ciliopathies, but the heterogeneity of cilia beating makes accurate and robust characterization challenging. Here, we present CiliaIO, a machine learning-based tool for quantification of motile cilia morphodynamics. Using this platform, we discovered subtle but highly significant regional differences in ciliary waveforms in the zebrafish spinal cord. To demonstrate the efficacy of the tool, we used CiliaIO to capture and quantify subtle ciliary defects in a previously unreported bbs2 allele that causes a late-onset scoliosis phenotype. These results provide a workflow for additional fine-scale analyses of ciliary morphodynamics that will be important for understanding motile ciliopathy.},
+    issn = {0950-1991},
+    doi = {10.1242/dev.206057},
+    url = {https://doi.org/10.1242/dev.206057},
+    eprint = {https://journals.biologists.com/dev/article-pdf/153/20/dev206057/3721882/dev206057.pdf},
+}
+```
 
 ## CiliaIO's Core Pipeline
 
